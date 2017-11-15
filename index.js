@@ -4,6 +4,8 @@
   (c) koa-compose authors
  */
 
+'use strict'
+
 module.exports = compose
 
 function compose (middleware) {
@@ -12,7 +14,7 @@ function compose (middleware) {
     if (typeof fn !== 'function') throw new TypeError('Middleware must be composed of functions!')
   }
 
-  return function (ctx, next) {
+  return function (context, next) {
     // last called middleware #
     let index = -1
     return dispatch(0)
@@ -23,7 +25,7 @@ function compose (middleware) {
       if (i === middleware.length) fn = next
       if (!fn) return Promise.resolve()
       try {
-        return Promise.resolve(fn(ctx, function next () {
+        return Promise.resolve(fn(context, function next () {
           return dispatch(i + 1)
         }))
       } catch (err) {

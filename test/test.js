@@ -1,8 +1,7 @@
 'use strict'
 
-/* eslint-env mocha */
+/* eslint-env jest */
 
-const co = require('co')
 const compose = require('..')
 const assert = require('assert')
 
@@ -10,175 +9,192 @@ function wait (ms) {
   return new Promise((resolve) => setTimeout(resolve, ms || 1))
 }
 
-describe('Mali Compose', function () {
-  it('should work', function () {
-    var arr = []
-    var stack = []
+function isPromise (x) {
+  return x && typeof x.then === 'function'
+}
 
-    stack.push(function * (context, next) {
+describe('Koa Compose', function () {
+  it('should work', async () => {
+    const arr = []
+    const stack = []
+
+    stack.push(async (context, next) => {
       arr.push(1)
-      yield wait(1)
-      yield next()
-      yield wait(1)
+      await wait(1)
+      await next()
+      await wait(1)
       arr.push(6)
     })
 
-    stack.push(function * (context, next) {
+    stack.push(async (context, next) => {
       arr.push(2)
-      yield wait(1)
-      yield next()
-      yield wait(1)
+      await wait(1)
+      await next()
+      await wait(1)
       arr.push(5)
     })
 
-    stack.push(function * (context, next) {
+    stack.push(async (context, next) => {
       arr.push(3)
-      yield wait(1)
-      yield next()
-      yield wait(1)
+      await wait(1)
+      await next()
+      await wait(1)
       arr.push(4)
     })
 
-    return compose(stack.map((fn) => co.wrap(fn)))({}).then(function () {
-      arr.should.eql([1, 2, 3, 4, 5, 6])
-    })
+    await compose(stack)({})
+    expect(arr).toEqual(expect.arrayContaining([1, 2, 3, 4, 5, 6]))
   })
 
   it('should be able to be called twice', () => {
     var stack = []
 
-    stack.push(function * (context, next) {
+    stack.push(async (context, next) => {
       context.arr.push(1)
-      yield wait(1)
-      yield next()
-      yield wait(1)
+      await wait(1)
+      await next()
+      await wait(1)
       context.arr.push(6)
     })
 
-    stack.push(function * (context, next) {
+    stack.push(async (context, next) => {
       context.arr.push(2)
-      yield wait(1)
-      yield next()
-      yield wait(1)
+      await wait(1)
+      await next()
+      await wait(1)
       context.arr.push(5)
     })
 
-    stack.push(function * (context, next) {
+    stack.push(async (context, next) => {
       context.arr.push(3)
-      yield wait(1)
-      yield next()
-      yield wait(1)
+      await wait(1)
+      await next()
+      await wait(1)
       context.arr.push(4)
     })
 
-    const fn = compose(stack.map((fn) => co.wrap(fn)))
+    const fn = compose(stack)
     const ctx1 = { arr: [] }
     const ctx2 = { arr: [] }
     const out = [1, 2, 3, 4, 5, 6]
 
     return fn(ctx1).then(() => {
       assert.deepEqual(out, ctx1.arr)
-
       return fn(ctx2)
     }).then(() => {
       assert.deepEqual(out, ctx2.arr)
     })
   })
 
-  it('should only accept an array', function () {
-    var err
+  it('should only accept an array', () => {
+    let err
     try {
-      (compose()).should.throw()
+      expect(compose()).toThrow()
     } catch (e) {
       err = e
     }
-    return (err).should.be.instanceof(TypeError)
+    return expect(err).toBeInstanceOf(TypeError)
+  })
+
+  it('should create next functions that return a Promise', function () {
+    const stack = []
+    const arr = []
+    for (let i = 0; i < 5; i++) {
+      stack.push((context, next) => {
+        arr.push(next())
+      })
+    }
+
+    compose(stack)({})
+
+    for (let next of arr) {
+      assert(isPromise(next), 'one of the functions next is not a Promise')
+    }
   })
 
   it('should work with 0 middleware', function () {
     return compose([])({})
   })
 
-  it('should only accept middleware as functions', function () {
-    var err
+  it('should only accept middleware as functions', () => {
+    let err
     try {
-      (compose([{}])).should.throw()
+      expect(compose([{}])).toThrow()
     } catch (e) {
       err = e
     }
-    return (err).should.be.instanceof(TypeError)
+    return expect(err).toBeInstanceOf(TypeError)
   })
 
-  it('should work when yielding at the end of the stack', function () {
+  it('should work when yielding at the end of the stack', async () => {
     var stack = []
     var called = false
 
-    stack.push(function * (ctx, next) {
-      yield next()
+    stack.push(async (ctx, next) => {
+      await next()
       called = true
     })
 
-    return compose(stack.map(co.wrap))({}).then(function () {
-      assert(called)
-    })
+    await compose(stack)({})
+    assert(called)
   })
 
-  it('should reject on errors in middleware', function () {
+  it('should reject on errors in middleware', () => {
     var stack = []
 
-    stack.push(function * () { throw new Error() })
+    stack.push(() => { throw new Error() })
 
-    return compose(stack.map(co.wrap))({})
+    return compose(stack)({})
       .then(function () {
         throw new Error('promise was not rejected')
       })
       .catch(function (e) {
-        e.should.be.instanceof(Error)
+        expect(e).toBeInstanceOf(Error)
       })
   })
 
-  it('should work when yielding at the end of the stack with yield*', function () {
+  it('should work when yielding at the end of the stack with yield*', () => {
     var stack = []
 
-    stack.push(function * (ctx, next) {
-      yield next
+    stack.push(async (ctx, next) => {
+      await next
     })
 
-    compose(stack.map(co.wrap))({})
+    return compose(stack)({})
   })
 
-  it('should keep the context', function () {
-    var ctx = {}
+  it('should keep the context', () => {
+    const ctx = {}
 
-    var stack = []
+    const stack = []
 
-    stack.push(function * (ctx2, next) {
-      yield next()
-      ctx2.should.equal(ctx)
+    stack.push(async (ctx2, next) => {
+      await next()
+      expect(ctx2).toEqual(ctx)
     })
 
-    stack.push(function * (ctx2, next) {
-      yield next()
-      ctx2.should.equal(ctx)
+    stack.push(async (ctx2, next) => {
+      await next()
+      expect(ctx2).toEqual(ctx)
     })
 
-    stack.push(function * (ctx2, next) {
-      yield next()
-      ctx2.should.equal(ctx)
+    stack.push(async (ctx2, next) => {
+      await next()
+      expect(ctx2).toEqual(ctx)
     })
 
-    return compose(stack.map(co.wrap))(ctx)
+    return compose(stack)(ctx)
   })
 
-  it('should catch downstream errors', function () {
-    var arr = []
-    var stack = []
+  it('should catch downstream errors', async () => {
+    const arr = []
+    const stack = []
 
-    stack.push(function * (ctx, next) {
+    stack.push(async (ctx, next) => {
       arr.push(1)
       try {
         arr.push(6)
-        yield next()
+        await next()
         arr.push(7)
       } catch (err) {
         arr.push(2)
@@ -186,43 +202,41 @@ describe('Mali Compose', function () {
       arr.push(3)
     })
 
-    stack.push(function * (ctx, next) {
+    stack.push(async (ctx, next) => {
       arr.push(4)
       throw new Error()
-      // arr.push(5)
     })
 
-    return compose(stack.map(co.wrap))({}).then(function () {
-      arr.should.eql([1, 6, 4, 2, 3])
-    })
+    await compose(stack)({})
+    expect(arr).toEqual([1, 6, 4, 2, 3])
   })
 
-  it('should compose w/ next', function () {
-    var called = false
+  it('should compose w/ next', () => {
+    let called = false
 
-    return compose([])({}, co.wrap(function * () {
+    return compose([])({}, async () => {
       called = true
-    })).then(function () {
+    }).then(function () {
       assert(called)
     })
   })
 
-  it('should handle errors in wrapped non-async functions', function () {
-    var stack = []
+  it('should handle errors in wrapped non-async functions', () => {
+    const stack = []
 
     stack.push(function () {
       throw new Error()
     })
 
-    return compose(stack.map(co.wrap))({}).then(function () {
+    return compose(stack)({}).then(function () {
       throw new Error('promise was not rejected')
     }).catch(function (e) {
-      e.should.be.instanceof(Error)
+      expect(e).toBeInstanceOf(Error)
     })
   })
 
   // https://github.com/koajs/compose/pull/27#issuecomment-143109739
-  it('should compose w/ other compositions', function () {
+  it('should compose w/ other compositions', () => {
     var called = []
 
     return compose([
@@ -243,12 +257,12 @@ describe('Mali Compose', function () {
     ])({}).then(() => assert.deepEqual(called, [1, 2, 3]))
   })
 
-  it('should throw if next() is called multiple times', function () {
+  it('should throw if next() is called multiple times', () => {
     return compose([
-      co.wrap(function * (ctx, next) {
-        yield next()
-        yield next()
-      })
+      async (ctx, next) => {
+        await next()
+        await next()
+      }
     ])({}).then(() => {
       throw new Error('boom')
     }, (err) => {
@@ -256,9 +270,9 @@ describe('Mali Compose', function () {
     })
   })
 
-  it('should return a valid middleware', function () {
-    var val = 0
-    compose([
+  it('should return a valid middleware', () => {
+    let val = 0
+    return compose([
       compose([
         (ctx, next) => {
           val++
@@ -274,27 +288,28 @@ describe('Mali Compose', function () {
         return next()
       }
     ])({}).then(function () {
-      val.should.equal(3)
+      expect(val).toEqual(3)
     })
   })
 
-  it('should return last return value', function () {
-    var stack = []
+  it('should return last return value', () => {
+    const stack = []
 
-    stack.push(function * (context, next) {
-      var val = yield next()
-      val.should.equal(2)
+    stack.push(async (context, next) => {
+      var val = await next()
+      expect(val).toEqual(2)
       return 1
     })
 
-    stack.push(function * (context, next) {
-      var val = yield next()
-      val.should.equal(0)
+    stack.push(async (context, next) => {
+      const val = await next()
+      expect(val).toEqual(0)
       return 2
     })
-    var next = () => 0
-    return compose(stack.map(co.wrap))({}, next).then(function (val) {
-      val.should.equal(1)
+
+    const next = () => 0
+    return compose(stack)({}, next).then(function (val) {
+      expect(val).toEqual(1)
     })
   })
 
@@ -330,7 +345,7 @@ describe('Mali Compose', function () {
       ctx.next++
       return next()
     }).then(() => {
-      ctx.should.eql({ middleware: 1, next: 1 })
+      expect(ctx).toEqual({ middleware: 1, next: 1 })
     })
   })
 })
