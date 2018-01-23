@@ -1,6 +1,8 @@
 
 # mali-compose
 
+[![Greenkeeper badge](https://badges.greenkeeper.io/malijs/mali-compose.svg)](https://greenkeeper.io/)
+
 Compose middleware.
 
 Basically copy of [koa-compose](https://github.com/koajs/compose).
