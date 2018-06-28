@@ -25,14 +25,14 @@
   ],
   "dependencies": {},
   "devDependencies": {
-    "codecov": "^3.0.0",
-    "jest": "^22.1.4",
+    "codecov": "^3.0.2",
+    "jest": "^23.2.0",
     "matcha": "^0.7.0",
-    "standard": "^10.0.3"
+    "standard": "^11.0.0"
   },
   "scripts": {
     "lint": "standard --fix .",
-    "test": "jest --forceExit --coverage"
+    "test": "jest --coverage"
   },
   "jest": {
     "testEnvironment": "node"
