@@ -1,5 +1,5 @@
 
-# mali-compose
+# @malijs/compose
 
 [![Greenkeeper badge](https://badges.greenkeeper.io/malijs/mali-compose.svg)](https://greenkeeper.io/)
 
@@ -14,7 +14,7 @@ koa-compose is license under MIT
 ## Installation
 
 ```sh
-$ npm install mali-compose
+$ npm install @malijs/compose
 ```
 
 ## API
